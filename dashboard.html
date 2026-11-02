@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Legal Ease — Dashboard</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="header">
+    <div class="logo-area">
+        <a href="index.html">
+            <div class="logo-icon">⚖</div>
+            <span class="logo-text">Legal Ease</span>
+        </a>
+    </div>
+
+    <nav class="navbar">
+        <a href="dashboard.html" class="active">Dashboard</a>
+        <a href="upload.html">Upload</a>
+        <a href="history.html">History</a>
+        <a href="contact.html">Contact Us</a>
+    </nav>
+
+    <div class="header-right">
+        <button class="upload-header-btn" onclick="window.location.href='upload.html'">
+            <span class="material-symbols-outlined">upload_file</span>
+            Upload Document
+        </button>
+
+        <button class="icon-btn" title="Notifications">
+            <span class="material-symbols-outlined">notifications</span>
+        </button>
+
+        <!-- Dynamic Auth State rendered by script.js -->
+        <div id="headerAuth" class="auth-header-actions"></div>
+    </div>
+</header>
+
+<main>
+
+<!-- ================= DASHBOARD HEADER & STATS ================= -->
+<section class="dashboard" style="border-top: none; padding-top: 50px;">
+    <div class="section-heading">
+        <div>
+            <span class="section-label">WORKSPACE OVERVIEW</span>
+            <h2>Document Dashboard</h2>
+        </div>
+        <div style="display: flex; gap: 12px; align-items: center;">
+            <a href="upload.html" class="action-btn-primary" style="text-decoration: none;">
+                <span class="material-symbols-outlined" style="font-size: 18px;">cloud_upload</span>
+                Upload Document
+            </a>
+            <a href="history.html" class="login-header-btn" style="text-decoration: none;">
+                <span class="material-symbols-outlined" style="font-size: 18px;">history</span>
+                Full History
+            </a>
+        </div>
+    </div>
+
+    <!-- Live Metric Cards -->
+    <div class="stats">
+        <div class="stat-box">
+            <span>TOTAL DOCUMENTS</span>
+            <strong id="documentCount">0</strong>
+        </div>
+
+        <div class="stat-box">
+            <span>CLAUSES TRANSLATED</span>
+            <strong id="clausesCount">0</strong>
+        </div>
+
+        <div class="stat-box">
+            <span>FLAGGED ATTENTION ITEMS</span>
+            <strong id="highRiskCount" style="color: #9a6d15;">0</strong>
+        </div>
+    </div>
+
+    <!-- Analytical Insight Banner -->
+    <div style="margin-top: 35px; background: white; border: 1px solid #e4e2de; border-radius: 8px; padding: 25px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 20px;">
+        <div style="max-width: 600px;">
+            <span class="section-label">PROTECTION MONITOR</span>
+            <h3 style="font-family: 'Playfair Display', serif; font-size: 20px; color: #032517; margin-top: 4px;">
+                Comprehensive Agreement Safeguards Active
+            </h3>
+            <p style="color: #555; font-size: 13px; margin-top: 6px; line-height: 1.6;">
+                Legal Ease continuously verifies clauses regarding intellectual property assignment, hidden indemnity traps, and non-standard termination penalties across your contracts.
+            </p>
+        </div>
+        <div style="display: flex; gap: 24px;">
+            <div style="text-align: center;">
+                <span style="font-size: 26px; font-weight: 700; color: #1b3b2b; font-family: 'Playfair Display', serif;">100%</span>
+                <span style="display: block; font-size: 11px; color: #727973; font-weight: 600;">Plain English</span>
+            </div>
+            <div style="text-align: center;">
+                <span style="font-size: 26px; font-weight: 700; color: #032517; font-family: 'Playfair Display', serif;">0 sec</span>
+                <span style="display: block; font-size: 11px; color: #727973; font-weight: 600;">Wait Time</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ================= RECENT ACTIVITY SECTION ================= -->
+<section class="dashboard" style="padding-top: 30px; padding-bottom: 70px;">
+    <div class="section-heading">
+        <div>
+            <span class="section-label">RECENT ACTIVITY</span>
+            <h2>Recently Analyzed Documents</h2>
+        </div>
+        <p>
+            Select any document to review its detailed plain English breakdown and risk assessment.
+        </p>
+    </div>
+
+    <!-- Container populated dynamically by script.js -->
+    <div id="dashboardRecentContainer"></div>
+</section>
+
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="footer">
+    <div class="footer-left">
+        <span class="footer-logo">Legal Ease</span>
+        <span class="footer-description">
+            — Intellectual clarity and contract comprehension.
+        </span>
+    </div>
+
+    <div class="footer-right">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <span>© 2026 Legal Ease Inc.</span>
+    </div>
+</footer>
+
+<script src="js/script.js"></script>
+</body>
+</html>

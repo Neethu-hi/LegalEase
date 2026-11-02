@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Legal Ease — Overview</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="header">
+    <div class="logo-area">
+        <a href="index.html">
+            <div class="logo-icon">⚖</div>
+            <span class="logo-text">Legal Ease</span>
+        </a>
+    </div>
+
+    <nav class="navbar">
+        <a href="index.html" class="active">Overview</a>
+        <a href="upload.html">Upload</a>
+        <a href="contact.html">Contact Us</a>
+    </nav>
+
+    <div class="header-right">
+        <button class="upload-header-btn" onclick="window.location.href='upload.html'">
+            <span class="material-symbols-outlined">upload_file</span>
+            Upload Document
+        </button>
+
+        <button class="icon-btn" title="Notifications">
+            <span class="material-symbols-outlined">notifications</span>
+        </button>
+
+        <!-- Dynamic Auth State rendered by script.js -->
+        <div id="headerAuth" class="auth-header-actions"></div>
+    </div>
+</header>
+
+<main>
+
+<!-- ================= HERO ================= -->
+<section class="hero">
+    <div class="hero-left">
+        <div class="tag">
+            DEMYSTIFYING LEGAL DOCUMENTS
+        </div>
+
+        <h1>
+            Understand any legal document
+            in <em>plain English.</em>
+        </h1>
+
+        <p class="hero-description">
+            Legal Ease turns intimidating legal clauses into simple, actionable explanations. 
+            Upload any contract, agreement, or lease and understand what you are actually signing.
+        </p>
+
+        <!-- Quick Upload Link / Box -->
+        <div class="upload-box" id="upload">
+            <input
+                type="file"
+                id="fileInput"
+                hidden
+                accept=".pdf,.doc,.docx,.txt"
+            >
+
+            <div
+                class="drop-area"
+                id="dropArea"
+                onclick="openFilePicker()"
+            >
+                <div class="upload-icon">
+                    <span class="material-symbols-outlined">cloud_upload</span>
+                </div>
+
+                <h3>Drag your document here</h3>
+                <p>or <span>browse files</span></p>
+                <small>PDF, DOC, DOCX or TXT • Maximum 10 MB</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hero Right: Interactive Sample Preview -->
+    <div class="hero-right">
+        <div class="document-preview">
+            <div class="document-top">
+                <span>DOCUMENT ANALYSIS SAMPLE</span>
+                <span class="status">● ANALYZED</span>
+            </div>
+
+            <h2>Employment Agreement</h2>
+
+            <p class="document-text">
+                "The employee agrees that any inventions, discoveries, developments or intellectual property conceived or made during employment shall exclusively belong to the company..."
+            </p>
+
+            <div class="highlight-box">
+                <div class="risk">MEDIUM RISK DETECTED</div>
+                <h3>Invention Assignment</h3>
+                <p>
+                    <strong>Plain English:</strong> Work, code, or ideas you create during your employment period may automatically become the company's property—even if worked on during personal hours.
+                </p>
+            </div>
+
+            <div class="document-footer">
+                <span>12 clauses reviewed</span>
+                <span>3 review recommendations</span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ================= DOCUMENT TYPES ================= -->
+<section class="documents-section">
+    <div class="section-heading">
+        <div>
+            <span class="section-label">COMMON DOCUMENT TYPES</span>
+            <h2>What can Legal Ease translate?</h2>
+        </div>
+        <p>
+            Understand high-stakes legal contracts without needing an expensive attorney for every single draft.
+        </p>
+    </div>
+
+    <div class="document-cards">
+        <!-- CARD 1 -->
+        <div class="document-card">
+            <div class="card-icon">🏠</div>
+            <h3>Leases & Rentals</h3>
+            <p>
+                Decode security deposit terms, early termination penalties, repair liabilities, and automatic rent increase clauses.
+            </p>
+            <button onclick="sampleAnalysis('lease')">
+                Analyze a sample →
+            </button>
+        </div>
+
+        <!-- CARD 2 -->
+        <div class="document-card">
+            <div class="card-icon">💼</div>
+            <h3>Employment & NDAs</h3>
+            <p>
+                Detect overreaching non-competes, aggressive intellectual property assignments, severance waivers, and confidentiality terms.
+            </p>
+            <button onclick="sampleAnalysis('employment')">
+                Audit offer letter →
+            </button>
+        </div>
+
+        <!-- CARD 3 -->
+        <div class="document-card">
+            <div class="card-icon">📄</div>
+            <h3>Business Contracts</h3>
+            <p>
+                Review liability caps, indemnification provisions, payment terms, warranties, and arbitration stipulations.
+            </p>
+            <button onclick="sampleAnalysis('business')">
+                Review contract →
+            </button>
+        </div>
+    </div>
+</section>
+
+<!-- ================= WORKSPACE OVERVIEW PREVIEW ================= -->
+<section class="dashboard">
+    <div class="section-heading">
+        <div>
+            <span class="section-label">YOUR WORKSPACE</span>
+            <h2>Live Analysis Metrics</h2>
+        </div>
+        <div>
+            <a href="dashboard.html" class="action-btn-primary" style="text-decoration: none;">
+                Open Full Dashboard →
+            </a>
+        </div>
+    </div>
+
+    <div class="stats">
+        <div class="stat-box">
+            <span>DOCUMENTS ANALYZED</span>
+            <strong id="documentCount">0</strong>
+        </div>
+
+        <div class="stat-box">
+            <span>CLAUSES REVIEWED</span>
+            <strong id="clausesCount">0</strong>
+        </div>
+
+        <div class="stat-box">
+            <span>HIGH RISK CLAUSES</span>
+            <strong id="highRiskCount">0</strong>
+        </div>
+    </div>
+</section>
+
+<!-- ================= FINAL CTA ================= -->
+<section class="final-cta">
+    <div class="cta-content">
+        <h2>Ready to decode your next agreement?</h2>
+        <p>
+            Upload any contract in seconds. Instant clause-by-clause translation into plain English. 
+            Completely private and confidential.
+        </p>
+
+        <div class="cta-buttons">
+            <button class="cta-main-btn" onclick="window.location.href='upload.html'">
+                <span class="material-symbols-outlined">upload_file</span>
+                Upload your first document
+            </button>
+
+            <button class="cta-secondary-btn" onclick="window.location.href='dashboard.html'">
+                View Document Dashboard
+                <span class="material-symbols-outlined">arrow_forward</span>
+            </button>
+        </div>
+
+        <div class="cta-note">
+            Private • Encrypted • No model training on user submissions
+        </div>
+    </div>
+</section>
+
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="footer">
+    <div class="footer-left">
+        <span class="footer-logo">Legal Ease</span>
+        <span class="footer-description">
+            — Intellectual clarity and contract comprehension.
+        </span>
+    </div>
+
+    <div class="footer-right">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <span>© 2026 Legal Ease Inc.</span>
+    </div>
+</footer>
+
+<script src="js/script.js"></script>
+</body>
+</html>

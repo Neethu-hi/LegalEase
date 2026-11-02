@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Legal Ease — Sign In</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&display=swap" rel="stylesheet">
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+<!-- ================= HEADER ================= -->
+<header class="header">
+    <div class="logo-area">
+        <a href="index.html">
+            <div class="logo-icon">⚖</div>
+            <span class="logo-text">Legal Ease</span>
+        </a>
+    </div>
+
+    <nav class="navbar">
+        <a href="index.html">Overview</a>
+        <a href="upload.html">Upload</a>
+        <a href="contact.html">Contact Us</a>
+    </nav>
+
+    <div class="header-right">
+        <button class="upload-header-btn" onclick="window.location.href='upload.html'">
+            <span class="material-symbols-outlined">upload_file</span>
+            Upload Document
+        </button>
+
+        <button class="icon-btn" title="Notifications">
+            <span class="material-symbols-outlined">notifications</span>
+        </button>
+
+        <div id="headerAuth" class="auth-header-actions"></div>
+    </div>
+</header>
+
+<main class="auth-page-container">
+    <div class="auth-card">
+        <div class="auth-header">
+            <div class="logo-badge">⚖</div>
+            <h1>Sign in to Legal Ease</h1>
+            <p>Understand complex contracts with clarity and confidence</p>
+        </div>
+
+        <!-- Conditional Alert displayed when user is redirected from View Analysis -->
+        <div id="authAlertBanner" class="auth-alert" style="display: none;">
+            <span class="material-symbols-outlined">lock</span>
+            <div>
+                <strong>Authentication Required</strong><br>
+                Please sign in to unlock and view the full clause analysis.
+            </div>
+        </div>
+
+        <!-- Sign In Form -->
+        <form class="auth-form" id="loginForm" onsubmit="handleFormLogin(event)">
+            <div class="form-group">
+                <label for="emailInput">Email Address</label>
+                <div class="input-with-icon">
+                    <span class="material-symbols-outlined">mail</span>
+                    <input 
+                        type="email" 
+                        id="emailInput" 
+                        class="form-input" 
+                        placeholder="name@company.com" 
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="passwordInput">Password</label>
+                <div class="input-with-icon">
+                    <span class="material-symbols-outlined">lock</span>
+                    <input 
+                        type="password" 
+                        id="passwordInput" 
+                        class="form-input" 
+                        placeholder="••••••••" 
+                        required
+                    >
+                </div>
+            </div>
+
+            <div class="form-row">
+                <label class="remember-label">
+                    <input type="checkbox" id="rememberMe" checked>
+                    <span>Remember this device</span>
+                </label>
+                <a href="#" class="forgot-link" onclick="alert('Password reset instructions have been sent to your email.'); return false;">
+                    Forgot password?
+                </a>
+            </div>
+
+            <button type="submit" class="submit-btn">
+                <span class="material-symbols-outlined" style="font-size: 18px;">login</span>
+                Sign In
+            </button>
+        </form>
+
+        <div class="auth-footer">
+            Don't have an account yet? 
+            <a href="#" onclick="alert('Account registration is currently open. You can sign in directly with your email to get started.'); return false;">
+                Create free account
+            </a>
+        </div>
+    </div>
+</main>
+
+<!-- ================= FOOTER ================= -->
+<footer class="footer">
+    <div class="footer-left">
+        <span class="footer-logo">Legal Ease</span>
+        <span class="footer-description">
+            — Intellectual clarity and contract comprehension.
+        </span>
+    </div>
+
+    <div class="footer-right">
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <span>© 2026 Legal Ease Inc.</span>
+    </div>
+</footer>
+
+<script src="js/script.js"></script>
+
+<script>
+// Page-specific login script
+document.addEventListener("DOMContentLoaded", function () {
+    const params = new URLSearchParams(window.location.search);
+    const reason = params.get("reason");
+    const banner = document.getElementById("authAlertBanner");
+    const docId = params.get("docId");
+
+    if (reason === "analysis" && banner) {
+        banner.style.display = "flex";
+    }
+
+    // If already logged in
+    if (isLoggedIn()) {
+        if (docId) {
+            finishLoginRedirect();
+            return;
+        }
+
+        const currentUser = getCurrentUser();
+        const authCard = document.querySelector(".auth-card");
+        if (authCard) {
+            authCard.innerHTML = `
+                <div class="auth-header">
+                    <div class="logo-badge">✓</div>
+                    <h1>Already Signed In</h1>
+                    <p>You are signed in as <strong>${currentUser.name}</strong> (${currentUser.email})</p>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">
+                    <a href="index.html" class="action-btn-primary" style="text-decoration: none; justify-content: center; padding: 12px;">
+                        Proceed to Home Page →
+                    </a>
+                    <a href="dashboard.html" class="demo-login-btn" style="text-decoration: none; text-align: center; justify-content: center; padding: 10px;">
+                        Go to Dashboard
+                    </a>
+                    <button class="demo-login-btn" onclick="logoutUser()" style="color: #b3261e;">
+                        Sign Out of this Account
+                    </button>
+                </div>
+            `;
+        }
+    }
+});
+
+function handleFormLogin(e) {
+    e.preventDefault();
+    const emailInput = document.getElementById("emailInput");
+    const email = emailInput && emailInput.value ? emailInput.value.trim() : "user@legalease.io";
+    const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+    loginUser(email, name);
+    finishLoginRedirect();
+}
+
+function finishLoginRedirect() {
+    const params = new URLSearchParams(window.location.search);
+    const redirectPage = params.get("redirect") || "index.html";
+    const docId = params.get("docId");
+
+    let targetUrl = redirectPage;
+    if (docId) {
+        targetUrl += (targetUrl.includes("?") ? "&" : "?") + "viewDoc=" + encodeURIComponent(docId);
+    }
+
+    window.location.href = targetUrl;
+}
+</script>
+
+</body>
+</html>
