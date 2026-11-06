@@ -518,8 +518,9 @@ function renderDocumentAnalysisPage(doc) {
                         <span class="material-symbols-outlined" style="font-size: 15px;">calendar_today</span>
                         Audit Date: ${doc.uploadDate || 'Recent'}
                     </span>
-                    <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: #334155; font-weight: 600; background: #f8fafc; padding: 2px 8px; border-radius: 4px; border: 1px solid #cbd5e1;">
-                        <span class="material-symbols-outlined" style="font-size: 14px; color: #475569;">verified</span> Verified Legal Audit
+                    <span style="display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: ${doc.aiModel && (doc.aiModel.includes('deepseek') || doc.aiModel.includes('nvidia')) ? '#166534' : '#334155'}; font-weight: 600; background: ${doc.aiModel && (doc.aiModel.includes('deepseek') || doc.aiModel.includes('nvidia')) ? '#f0fdf4' : '#f8fafc'}; padding: 2px 8px; border-radius: 4px; border: 1px solid ${doc.aiModel && (doc.aiModel.includes('deepseek') || doc.aiModel.includes('nvidia')) ? '#bbf7d0' : '#cbd5e1'};">
+                        <span class="material-symbols-outlined" style="font-size: 14px; color: ${doc.aiModel && (doc.aiModel.includes('deepseek') || doc.aiModel.includes('nvidia')) ? '#22c55e' : '#475569'};">${doc.aiModel && (doc.aiModel.includes('deepseek') || doc.aiModel.includes('nvidia')) ? 'smart_toy' : 'verified'}</span>
+                        ${doc.aiModel ? (doc.aiModel.includes('deepseek-r1') ? 'NVIDIA DeepSeek R1' : doc.aiModel.includes('deepseek-v3') ? 'NVIDIA DeepSeek V3' : doc.aiModel) : 'Verified Legal Audit'}
                     </span>
                 </div>
 

@@ -17,15 +17,80 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Initialize OpenAI client if OPENAI_API_KEY is available in environment
-const openaiApiKey = process.env.OPENAI_API_KEY || '';
-const openai = openaiApiKey ? new OpenAI({ apiKey: openaiApiKey }) : null;
+// --- AI CLIENTS & CONFIGURATION (NVIDIA Build / DeepSeek / OpenAI) ---
+let aiConfig = {
+    nvidiaApiKey: (process.env.NVIDIA_API_KEY || process.env.DEEPSEEK_API_KEY || '').trim(),
+    nvidiaBaseUrl: (process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').trim(),
+    nvidiaModel: (process.env.NVIDIA_MODEL || 'deepseek-ai/deepseek-r1').trim(),
+    openaiApiKey: (process.env.OPENAI_API_KEY || '').trim(),
+    preferredProvider: (process.env.AI_PROVIDER || 'auto').trim()
+};
 
-if (openaiApiKey) {
-    console.log("OpenAI API client initialized successfully with key.");
-} else {
-    console.log("OPENAI_API_KEY environment variable not set. Running with built-in dynamic Legal AI analysis engine.");
+let nvidiaClient = null;
+let openaiClient = null;
+
+function reloadEnvConfig() {
+    try {
+        require('dotenv').config({ override: true });
+        aiConfig = {
+            nvidiaApiKey: (process.env.NVIDIA_API_KEY || process.env.DEEPSEEK_API_KEY || '').trim(),
+            nvidiaBaseUrl: (process.env.NVIDIA_BASE_URL || 'https://integrate.api.nvidia.com/v1').trim(),
+            nvidiaModel: (process.env.NVIDIA_MODEL || 'deepseek-ai/deepseek-r1').trim(),
+            openaiApiKey: (process.env.OPENAI_API_KEY || '').trim(),
+            preferredProvider: (process.env.AI_PROVIDER || 'auto').trim()
+        };
+    } catch (e) {
+        // Fallback to existing aiConfig
+    }
 }
+
+function reinitAiClients() {
+    if (aiConfig.nvidiaApiKey) {
+        try {
+            nvidiaClient = new OpenAI({
+                apiKey: aiConfig.nvidiaApiKey,
+                baseURL: aiConfig.nvidiaBaseUrl
+            });
+            console.log(`[AI Engine] NVIDIA NIM client initialized successfully (Base: ${aiConfig.nvidiaBaseUrl}, Model: ${aiConfig.nvidiaModel}).`);
+        } catch (e) {
+            console.error("[AI Engine] Error initializing NVIDIA NIM client:", e.message);
+            nvidiaClient = null;
+        }
+    } else {
+        nvidiaClient = null;
+    }
+
+    if (aiConfig.openaiApiKey) {
+        try {
+            openaiClient = new OpenAI({ apiKey: aiConfig.openaiApiKey });
+            console.log("[AI Engine] OpenAI client initialized successfully.");
+        } catch (e) {
+            console.error("[AI Engine] Error initializing OpenAI client:", e.message);
+            openaiClient = null;
+        }
+    } else {
+        openaiClient = null;
+    }
+
+    const active = getActiveAiProvider();
+    if (active === 'nvidia') {
+        console.log(`[AI Engine] Active: NVIDIA DeepSeek (${aiConfig.nvidiaModel})`);
+    } else if (active === 'openai') {
+        console.log("[AI Engine] Active: OpenAI (gpt-4o-mini)");
+    } else {
+        console.log("[AI Engine] Active: Built-in dynamic Legal AI analysis engine (add NVIDIA_API_KEY to unlock DeepSeek R1).");
+    }
+}
+
+function getActiveAiProvider() {
+    if (aiConfig.preferredProvider === 'nvidia' && nvidiaClient) return 'nvidia';
+    if (aiConfig.preferredProvider === 'openai' && openaiClient) return 'openai';
+    if (nvidiaClient) return 'nvidia';
+    if (openaiClient) return 'openai';
+    return 'dynamic';
+}
+
+reinitAiClients();
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -92,9 +157,13 @@ function initDatabase() {
                 risk_level TEXT,
                 summary TEXT,
                 clauses TEXT,
+                ai_model TEXT,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         `);
+
+        // Soft-migrate existing table if ai_model column missing
+        db.run(`ALTER TABLE documents ADD COLUMN ai_model TEXT`, () => {});
 
         // Contacts Table
         db.run(`
@@ -441,8 +510,104 @@ function parseDocumentTextToClauses(documentText, fileName, category) {
     };
 }
 
+function cleanDeepSeekJsonResponse(rawText) {
+    if (!rawText || typeof rawText !== 'string') return null;
+
+    // 1. Strip <think>...</think> tags (DeepSeek-R1 reasoning tokens)
+    let cleaned = rawText.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+
+    // 2. Remove markdown code block fences if present
+    cleaned = cleaned.replace(/```(?:json)?([\s\S]*?)```/gi, '$1').trim();
+
+    // 3. Try direct JSON parse
+    try {
+        const parsed = JSON.parse(cleaned);
+        if (parsed && typeof parsed === 'object') return parsed;
+    } catch (e) {
+        // Fallback to substring matching
+    }
+
+    // 4. Extract outermost JSON object { ... }
+    const firstBrace = cleaned.indexOf('{');
+    const lastBrace = cleaned.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+        const jsonSubstring = cleaned.substring(firstBrace, lastBrace + 1);
+        try {
+            const parsed = JSON.parse(jsonSubstring);
+            if (parsed && typeof parsed === 'object') return parsed;
+        } catch (e2) {
+            console.warn("Failed to parse extracted JSON substring:", e2.message);
+        }
+    }
+
+    return null;
+}
+
 async function analyzeLegalDocumentWithAI(documentText, fileName, category) {
-    if (openai && documentText && documentText.trim().length > 30) {
+    reloadEnvConfig();
+    reinitAiClients();
+    const activeProvider = getActiveAiProvider();
+
+    // 1. Priority: NVIDIA Build API (DeepSeek R1 / V3)
+    if (activeProvider === 'nvidia' && nvidiaClient && documentText && documentText.trim().length > 30) {
+        try {
+            console.log(`Performing deep legal audit for "${fileName}" via NVIDIA NIM (${aiConfig.nvidiaModel})...`);
+            const systemPrompt = "You are a senior partner contract attorney and legal risk auditor. Perform a meticulous, comprehensive contractual risk audit. Output strictly valid JSON matching the requested schema without conversational commentary.";
+            const userPrompt = `Perform a comprehensive legal risk audit on the following contract document. Extract key clauses directly from the text and classify each by risk level ('high', 'medium', 'low'). For each clause, provide an in-depth plain English breakdown, concrete risk impact, and specific actionable negotiation counter-proposal recommendation.
+
+Document Name: ${fileName}
+Category: ${category}
+
+Document Content Excerpt:
+${documentText.substring(0, 14000)}
+
+Instructions:
+Extract between 4 and 7 distinct clauses from the document. Format as strictly valid JSON matching this exact structure:
+{
+  "summary": "3-4 sentence comprehensive executive summary detailing contract purpose, key vulnerabilities, and party obligations",
+  "fairnessRating": "Fairness Score (e.g. 7.5/10 Standard Industry Contract, or 4/10 One-Sided)",
+  "riskLevel": "High" | "Medium" | "Low",
+  "highRiskCount": 1,
+  "clausesCount": 5,
+  "clauses": [
+    {
+      "title": "Specific Clause Title & Section Reference",
+      "risk": "high" | "medium" | "low",
+      "legalText": "Verbatim quote or exact text snippet from the document",
+      "explanation": "Detailed plain English translation of what rights you grant, what duties you assume, and why this clause matters.",
+      "impact": "Specific potential financial, professional, or legal risk exposure.",
+      "recommendation": "Actionable negotiation advice or counter-proposal amendment language to request."
+    }
+  ]
+}`;
+
+            const response = await nvidiaClient.chat.completions.create({
+                model: aiConfig.nvidiaModel,
+                messages: [
+                    { role: "system", content: systemPrompt },
+                    { role: "user", content: userPrompt }
+                ],
+                temperature: 0.2,
+                max_tokens: 4096
+            });
+
+            const content = response.choices?.[0]?.message?.content || '';
+            const aiResult = cleanDeepSeekJsonResponse(content);
+            if (aiResult && aiResult.clauses && Array.isArray(aiResult.clauses) && aiResult.clauses.length > 0) {
+                console.log(`Successfully generated NVIDIA DeepSeek (${aiConfig.nvidiaModel}) analysis for "${fileName}" with ${aiResult.clauses.length} clauses.`);
+                aiResult.ai_provider = 'nvidia';
+                aiResult.ai_model = aiConfig.nvidiaModel;
+                return aiResult;
+            } else {
+                console.warn("NVIDIA DeepSeek output could not be parsed into expected schema. Falling back...");
+            }
+        } catch (err) {
+            console.error("NVIDIA NIM API analysis error:", err.message);
+        }
+    }
+
+    // 2. Secondary: OpenAI API fallback
+    if (openaiClient && documentText && documentText.trim().length > 30) {
         try {
             console.log(`Performing deep legal audit for "${fileName}" via OpenAI API (gpt-4o-mini)...`);
             const systemPrompt = "You are a senior partner contract attorney and legal risk auditor. Return strictly valid JSON matching the requested format.";
@@ -474,7 +639,7 @@ Extract between 4 and 7 distinct clauses from the document. Format as valid JSON
   ]
 }`;
 
-            const response = await openai.chat.completions.create({
+            const response = await openaiClient.chat.completions.create({
                 model: "gpt-4o-mini",
                 messages: [
                     { role: "system", content: systemPrompt },
@@ -483,9 +648,12 @@ Extract between 4 and 7 distinct clauses from the document. Format as valid JSON
                 response_format: { type: "json_object" }
             });
 
-            const aiResult = JSON.parse(response.choices[0].message.content);
+            const content = response.choices?.[0]?.message?.content || '';
+            const aiResult = cleanDeepSeekJsonResponse(content);
             if (aiResult && aiResult.clauses && Array.isArray(aiResult.clauses) && aiResult.clauses.length > 0) {
                 console.log(`Successfully generated OpenAI analysis for "${fileName}" with ${aiResult.clauses.length} clauses.`);
+                aiResult.ai_provider = 'openai';
+                aiResult.ai_model = 'gpt-4o-mini';
                 return aiResult;
             }
         } catch (err) {
@@ -493,9 +661,12 @@ Extract between 4 and 7 distinct clauses from the document. Format as valid JSON
         }
     }
 
-    // Dynamic Rule-Based Analysis Engine (Uses actual extracted document text & file metadata)
+    // 3. Fallback: Dynamic Rule-Based Analysis Engine (Uses actual extracted document text & file metadata)
     console.log(`Using built-in dynamic legal risk parser for "${fileName}"...`);
-    return parseDocumentTextToClauses(documentText, fileName, category);
+    const dynamicResult = parseDocumentTextToClauses(documentText, fileName, category);
+    dynamicResult.ai_provider = 'dynamic';
+    dynamicResult.ai_model = 'Dynamic Legal AI Engine';
+    return dynamicResult;
 }
 
 // --- API ROUTES ---
@@ -570,7 +741,8 @@ app.get('/api/documents', (req, res) => {
             highRiskCount: row.high_risk_count,
             riskLevel: row.risk_level,
             summary: row.summary,
-            clauses: row.clauses ? JSON.parse(row.clauses) : []
+            clauses: row.clauses ? JSON.parse(row.clauses) : [],
+            aiModel: row.ai_model || 'Dynamic Legal Engine'
         }));
 
         res.json(documents);
@@ -603,7 +775,8 @@ app.get('/api/documents/:id', (req, res) => {
             highRiskCount: row.high_risk_count,
             riskLevel: row.risk_level,
             summary: row.summary,
-            clauses: row.clauses ? JSON.parse(row.clauses) : []
+            clauses: row.clauses ? JSON.parse(row.clauses) : [],
+            aiModel: row.ai_model || 'Dynamic Legal Engine'
         };
 
         res.json(document);
@@ -630,17 +803,18 @@ app.post('/api/documents', (req, res) => {
     const riskLevel = doc.riskLevel || 'Low';
     const summary = doc.summary || `Analysis summary for ${doc.name}`;
     const clausesStr = JSON.stringify(doc.clauses || []);
+    const aiModel = doc.aiModel || doc.ai_model || (aiConfig.nvidiaApiKey ? aiConfig.nvidiaModel : 'Dynamic Legal Engine');
 
     const sql = `
         INSERT OR REPLACE INTO documents (
             id, user_email, name, filename, type, category, upload_date, 
-            timestamp, status, clauses_count, high_risk_count, risk_level, summary, clauses
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            timestamp, status, clauses_count, high_risk_count, risk_level, summary, clauses, ai_model
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.run(
         sql,
-        [docId, userEmail, doc.name, filename, type, category, uploadDate, timestamp, status, clausesCount, highRiskCount, riskLevel, summary, clausesStr],
+        [docId, userEmail, doc.name, filename, type, category, uploadDate, timestamp, status, clausesCount, highRiskCount, riskLevel, summary, clausesStr, aiModel],
         function (err) {
             if (err) {
                 return res.status(500).json({ error: err.message });
@@ -661,14 +835,15 @@ app.post('/api/documents', (req, res) => {
                     highRiskCount: highRiskCount,
                     riskLevel: riskLevel,
                     summary: summary,
-                    clauses: doc.clauses || []
+                    clauses: doc.clauses || [],
+                    aiModel: aiModel
                 }
             });
         }
     );
 });
 
-// 5. File Upload Handler (Multipart FormData with OpenAI API Analysis)
+// 5. File Upload Handler (Multipart FormData with NVIDIA DeepSeek or OpenAI API Analysis)
 app.post('/api/documents/upload-file', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
@@ -714,7 +889,7 @@ app.post('/api/documents/upload-file', upload.single('file'), async (req, res) =
     // Extract text from uploaded document
     const extractedText = await extractTextFromFile(file.path, fileName);
     
-    // Perform AI Risk Analysis via OpenAI (or fallback engine)
+    // Perform AI Risk Analysis via NVIDIA DeepSeek, OpenAI, or dynamic fallback
     const aiAnalysis = await analyzeLegalDocumentWithAI(extractedText, fileName, category);
 
     const clausesCount = aiAnalysis.clauses ? aiAnalysis.clauses.length : (aiAnalysis.clausesCount || 5);
@@ -722,17 +897,18 @@ app.post('/api/documents/upload-file', upload.single('file'), async (req, res) =
     const riskLevel = aiAnalysis.riskLevel || (highRiskCount > 0 ? "High" : "Low");
     const summary = aiAnalysis.summary || `Analysis summary for ${fileName}`;
     const clauses = aiAnalysis.clauses || [];
+    const aiModel = aiAnalysis.ai_model || (aiConfig.nvidiaApiKey ? aiConfig.nvidiaModel : 'Dynamic Legal AI Engine');
 
     const sql = `
         INSERT INTO documents (
             id, user_email, name, filename, type, category, upload_date, 
-            timestamp, status, clauses_count, high_risk_count, risk_level, summary, clauses
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            timestamp, status, clauses_count, high_risk_count, risk_level, summary, clauses, ai_model
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `;
 
     db.run(
         sql,
-        [docId, userEmail, fileName, file.filename, type, category, "Just now", Date.now(), "Analyzed", clausesCount, highRiskCount, riskLevel, summary, JSON.stringify(clauses)],
+        [docId, userEmail, fileName, file.filename, type, category, "Just now", Date.now(), "Analyzed", clausesCount, highRiskCount, riskLevel, summary, JSON.stringify(clauses), aiModel],
         function (err) {
             if (err) {
                 return res.status(500).json({ error: err.message });
@@ -753,11 +929,157 @@ app.post('/api/documents/upload-file', upload.single('file'), async (req, res) =
                     highRiskCount: highRiskCount,
                     riskLevel: riskLevel,
                     summary: summary,
-                    clauses: clauses
+                    clauses: clauses,
+                    aiModel: aiModel,
+                    aiProvider: aiAnalysis.ai_provider || 'dynamic'
                 }
             });
         }
     );
+});
+
+// --- AI CONFIGURATION & TEST ENDPOINTS ---
+
+// Get current AI engine status and configuration
+app.get('/api/config/ai', (req, res) => {
+    reloadEnvConfig();
+    reinitAiClients();
+    const activeProvider = getActiveAiProvider();
+    const maskedNvidia = aiConfig.nvidiaApiKey
+        ? (aiConfig.nvidiaApiKey.length > 12 
+            ? `${aiConfig.nvidiaApiKey.substring(0, 8)}...${aiConfig.nvidiaApiKey.slice(-4)}` 
+            : 'Key Configured')
+        : '';
+    const maskedOpenai = aiConfig.openaiApiKey
+        ? (aiConfig.openaiApiKey.length > 10 
+            ? `${aiConfig.openaiApiKey.substring(0, 6)}...${aiConfig.openaiApiKey.slice(-4)}` 
+            : 'Key Configured')
+        : '';
+
+    res.json({
+        success: true,
+        activeProvider: activeProvider,
+        activeModel: activeProvider === 'nvidia' ? aiConfig.nvidiaModel : (activeProvider === 'openai' ? 'gpt-4o-mini' : 'Dynamic Legal AI Engine'),
+        nvidia: {
+            configured: !!aiConfig.nvidiaApiKey,
+            maskedKey: maskedNvidia,
+            model: aiConfig.nvidiaModel,
+            baseUrl: aiConfig.nvidiaBaseUrl
+        },
+        openai: {
+            configured: !!aiConfig.openaiApiKey,
+            maskedKey: maskedOpenai
+        },
+        availableModels: [
+            { id: 'deepseek-ai/deepseek-r1', name: 'DeepSeek-R1 (Flagship Reasoning & Deep Contract Audit)', recommended: true },
+            { id: 'deepseek-ai/deepseek-v3', name: 'DeepSeek-V3 (High-Speed Legal Analysis & Review)', recommended: false }
+        ]
+    });
+});
+
+// Update AI settings & save NVIDIA key dynamically
+app.post('/api/config/ai', (req, res) => {
+    const { nvidiaApiKey, nvidiaModel, preferredProvider, nvidiaBaseUrl } = req.body;
+    
+    if (nvidiaApiKey !== undefined) {
+        aiConfig.nvidiaApiKey = nvidiaApiKey.trim();
+    }
+    if (nvidiaModel) {
+        aiConfig.nvidiaModel = nvidiaModel.trim();
+    }
+    if (nvidiaBaseUrl) {
+        aiConfig.nvidiaBaseUrl = nvidiaBaseUrl.trim();
+    }
+    if (preferredProvider) {
+        aiConfig.preferredProvider = preferredProvider.trim();
+    }
+
+    reinitAiClients();
+
+    // Persist to .env file
+    try {
+        const envPath = path.join(__dirname, '.env');
+        let envContent = fs.existsSync(envPath) ? fs.readFileSync(envPath, 'utf8') : '';
+        
+        function updateOrAppendEnv(key, val) {
+            const regex = new RegExp(`^${key}=.*$`, 'm');
+            if (regex.test(envContent)) {
+                envContent = envContent.replace(regex, `${key}=${val}`);
+            } else {
+                envContent += `\n${key}=${val}`;
+            }
+        }
+
+        updateOrAppendEnv('NVIDIA_API_KEY', aiConfig.nvidiaApiKey || '');
+        if (aiConfig.nvidiaModel) updateOrAppendEnv('NVIDIA_MODEL', aiConfig.nvidiaModel);
+        if (aiConfig.nvidiaBaseUrl) updateOrAppendEnv('NVIDIA_BASE_URL', aiConfig.nvidiaBaseUrl);
+        if (aiConfig.preferredProvider) updateOrAppendEnv('AI_PROVIDER', aiConfig.preferredProvider);
+
+        fs.writeFileSync(envPath, envContent.trim() + '\n', 'utf8');
+        console.log("[AI Engine] Successfully persisted AI configuration to .env");
+    } catch (e) {
+        console.warn("[AI Engine] Notice: Could not write directly to .env file:", e.message);
+    }
+
+    res.json({
+        success: true,
+        message: 'AI Configuration successfully saved and activated.',
+        activeProvider: getActiveAiProvider(),
+        activeModel: aiConfig.nvidiaModel,
+        nvidiaConfigured: !!aiConfig.nvidiaApiKey
+    });
+});
+
+// Test NVIDIA NIM API Key connection with DeepSeek
+app.post('/api/config/ai/test', async (req, res) => {
+    const keyToTest = (req.body.nvidiaApiKey || aiConfig.nvidiaApiKey || '').trim();
+    const modelToTest = req.body.nvidiaModel || aiConfig.nvidiaModel || 'deepseek-ai/deepseek-r1';
+    const baseUrlToTest = req.body.nvidiaBaseUrl || aiConfig.nvidiaBaseUrl || 'https://integrate.api.nvidia.com/v1';
+
+    if (!keyToTest) {
+        return res.status(400).json({
+            success: false,
+            error: 'No NVIDIA API key provided. Please paste your NVIDIA Build API key (starts with nvapi-).'
+        });
+    }
+
+    try {
+        console.log(`[AI Test] Testing NVIDIA Build key with model ${modelToTest} on ${baseUrlToTest}...`);
+        const testClient = new OpenAI({
+            apiKey: keyToTest,
+            baseURL: baseUrlToTest
+        });
+
+        const testResponse = await testClient.chat.completions.create({
+            model: modelToTest,
+            messages: [
+                { role: "user", content: "Reply with the exact words: 'LegalEase DeepSeek Active'." }
+            ],
+            max_tokens: 30,
+            temperature: 0.1
+        });
+
+        const content = testResponse.choices?.[0]?.message?.content || 'Verified';
+        const cleaned = content.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+        console.log("[AI Test] Success. Model response:", cleaned);
+
+        return res.json({
+            success: true,
+            message: `Connection to NVIDIA NIM successful! Model "${modelToTest}" is ready for contract auditing.`,
+            responseSample: cleaned,
+            model: modelToTest
+        });
+    } catch (err) {
+        console.error("[AI Test] NVIDIA API connection failed:", err.message);
+        let errorMsg = err.message || 'Authentication with NVIDIA NIM failed.';
+        if (errorMsg.includes('404') || errorMsg.includes('Not found for account')) {
+            errorMsg = `Your key is authenticated, but your NVIDIA account does not currently have active trial credits for ${modelToTest}. Please visit https://build.nvidia.com/deepseek-ai/deepseek-r1 to claim your free 1,000 trial credits.`;
+        }
+        return res.status(400).json({
+            success: false,
+            error: errorMsg
+        });
+    }
 });
 
 // 6. Contact Us Form API

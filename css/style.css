@@ -1246,3 +1246,350 @@ body {
         box-shadow: none !important;
     }
 }
+
+/* =========================================================
+   AI CONFIGURATION & NVIDIA DEEPSEEK MODAL STYLING
+   ========================================================= */
+
+.ai-engine-header-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+    transition: all 0.2s ease;
+}
+
+.ai-engine-header-badge:hover {
+    background: #dcfce7;
+    border-color: #86efac;
+    transform: translateY(-1px);
+}
+
+.ai-engine-header-badge.ai-badge-disconnected {
+    background: #fefce8;
+    border-color: #fef08a;
+    color: #854d0e;
+}
+
+.ai-engine-header-badge .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+.ai-engine-header-badge.ai-badge-disconnected .status-dot {
+    background: #eab308;
+    box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.2);
+}
+
+/* AI Model Configuration Modal */
+.ai-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    padding: 20px;
+}
+
+.ai-modal-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 580px;
+    border-radius: 12px;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
+    border: 1px solid #e2e8f0;
+    overflow: hidden;
+    animation: aiModalFadeIn 0.2s ease-out;
+}
+
+@keyframes aiModalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.97) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.ai-modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #fafaf8;
+}
+
+.ai-modal-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ai-modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: #64748b;
+    cursor: pointer;
+    line-height: 1;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.15s ease;
+}
+
+.ai-modal-close-btn:hover {
+    color: #0f172a;
+    background: #f1f5f9;
+}
+
+.ai-modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    max-height: calc(85vh - 120px);
+    overflow-y: auto;
+}
+
+.ai-nvidia-info-box {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #76b900; /* NVIDIA Green */
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #334155;
+}
+
+.ai-nvidia-info-box a {
+    color: #166534;
+    font-weight: 700;
+    text-decoration: underline;
+}
+
+.ai-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.ai-input-group label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #1e293b;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+.ai-key-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.ai-text-input {
+    width: 100%;
+    padding: 11px 40px 11px 14px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 13.5px;
+    font-family: monospace;
+    color: #0f172a;
+    transition: all 0.15s ease;
+}
+
+.ai-text-input:focus {
+    outline: none;
+    border-color: #164e3b;
+    box-shadow: 0 0 0 3px rgba(22, 78, 59, 0.12);
+}
+
+.ai-key-toggle-btn {
+    position: absolute;
+    right: 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    padding: 4px;
+}
+
+.ai-key-toggle-btn:hover {
+    color: #0f172a;
+}
+
+/* Model Selector Radio Grid */
+.ai-model-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+@media (max-width: 520px) {
+    .ai-model-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.ai-model-card {
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.ai-model-card:hover {
+    border-color: #cbd5e1;
+    background: #f8fafc;
+}
+
+.ai-model-card.selected {
+    border-color: #164e3b;
+    background: #f0fdf4;
+    box-shadow: 0 0 0 1px #164e3b;
+}
+
+.ai-model-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #0f172a;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.ai-model-desc {
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+}
+
+.ai-modal-footer {
+    padding: 16px 24px;
+    background: #fafaf8;
+    border-top: 1px solid #f1f5f9;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.ai-test-feedback-box {
+    padding: 10px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    display: none;
+    line-height: 1.4;
+}
+
+.ai-test-feedback-box.success {
+    display: block;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    color: #166534;
+}
+
+.ai-test-feedback-box.error {
+    display: block;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: #991b1b;
+}
+
+/* Upload Page AI Engine Banner */
+.upload-ai-status-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 12px 18px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.upload-ai-status-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.upload-ai-status-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: #164e3b;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.upload-ai-status-text h4 {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #0f172a;
+    margin: 0;
+}
+
+.upload-ai-status-text p {
+    font-size: 12px;
+    color: #64748b;
+    margin: 2px 0 0 0;
+}
+
+.upload-ai-config-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1e293b;
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s ease;
+}
+
+.upload-ai-config-btn:hover {
+    background: #f1f5f9;
+    border-color: #94a3b8;
+}

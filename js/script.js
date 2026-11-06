@@ -891,6 +891,348 @@ function sampleAnalysis(type) {
     alert(message);
 }
 
+// --- AI ENGINE CONFIGURATION (NVIDIA NIM / DEEPSEEK) ---
+let currentAiConfig = {
+    activeProvider: 'dynamic',
+    activeModel: 'Dynamic Legal AI Engine',
+    nvidia: { configured: false, maskedKey: '', model: 'deepseek-ai/deepseek-r1', baseUrl: '' },
+    openai: { configured: false, maskedKey: '' }
+};
+let selectedModalModel = 'deepseek-ai/deepseek-r1';
+
+async function fetchAiConfigFromApi() {
+    try {
+        let apiUrl = "/api/config/ai";
+        if (window.location.port && window.location.port !== "3000") {
+            apiUrl = "http://localhost:3000/api/config/ai";
+        }
+        const res = await fetch(apiUrl);
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.success) {
+                currentAiConfig = data;
+                if (data.nvidia && data.nvidia.model) {
+                    selectedModalModel = data.nvidia.model;
+                }
+                renderAiHeaderBadge();
+                renderUploadAiBanner();
+            }
+        }
+    } catch (e) {
+        console.warn("Could not fetch AI config from backend:", e);
+        renderAiHeaderBadge();
+        renderUploadAiBanner();
+    }
+}
+
+function renderAiHeaderBadge() {
+    const headerRights = document.querySelectorAll(".header-right");
+    if (!headerRights.length) return;
+
+    headerRights.forEach(headerRight => {
+        let badge = headerRight.querySelector("#headerAiBadge");
+        if (!badge) {
+            badge = document.createElement("div");
+            badge.id = "headerAiBadge";
+            const authHeader = headerRight.querySelector("#headerAuth");
+            if (authHeader) {
+                headerRight.insertBefore(badge, authHeader);
+            } else {
+                headerRight.appendChild(badge);
+            }
+        }
+
+        const isNvidia = currentAiConfig.activeProvider === 'nvidia' && currentAiConfig.nvidia && currentAiConfig.nvidia.configured;
+        const modelLabel = currentAiConfig.activeModel && currentAiConfig.activeModel.includes('deepseek-r1') 
+            ? 'DeepSeek R1' 
+            : currentAiConfig.activeModel && currentAiConfig.activeModel.includes('deepseek-v3')
+                ? 'DeepSeek V3'
+                : 'NVIDIA Active';
+
+        if (isNvidia) {
+            badge.className = "ai-engine-header-badge";
+            badge.title = `NVIDIA NIM Active (${currentAiConfig.activeModel}) • Click to configure`;
+            badge.innerHTML = `
+                <span class="status-dot"></span>
+                <span>${modelLabel}</span>
+                <span class="material-symbols-outlined" style="font-size: 15px;">tune</span>
+            `;
+        } else {
+            badge.className = "ai-engine-header-badge ai-badge-disconnected";
+            badge.title = "Add NVIDIA Build API Key for DeepSeek contract audits";
+            badge.innerHTML = `
+                <span class="status-dot"></span>
+                <span>Add NVIDIA Key</span>
+                <span class="material-symbols-outlined" style="font-size: 15px;">bolt</span>
+            `;
+        }
+        badge.onclick = () => openAiSettingsModal();
+    });
+}
+
+function renderUploadAiBanner() {
+    const bannerContainer = document.getElementById("uploadAiBannerContainer");
+    if (!bannerContainer) return;
+
+    const isNvidia = currentAiConfig.activeProvider === 'nvidia' && currentAiConfig.nvidia && currentAiConfig.nvidia.configured;
+    const modelName = currentAiConfig.activeModel && currentAiConfig.activeModel.includes('deepseek-r1')
+        ? 'DeepSeek-R1 (Reasoning Audit)'
+        : currentAiConfig.activeModel && currentAiConfig.activeModel.includes('deepseek-v3')
+            ? 'DeepSeek-V3 (Fast Analysis)'
+            : 'DeepSeek';
+
+    bannerContainer.innerHTML = `
+        <div class="upload-ai-status-card">
+            <div class="upload-ai-status-left">
+                <div class="upload-ai-status-icon" style="background: ${isNvidia ? '#164e3b' : '#334155'};">
+                    <span class="material-symbols-outlined">${isNvidia ? 'smart_toy' : 'bolt'}</span>
+                </div>
+                <div class="upload-ai-status-text">
+                    <h4>${isNvidia ? `⚡ Powered by NVIDIA NIM (${modelName})` : 'AI Risk Engine: Built-in Dynamic Risk Engine'}</h4>
+                    <p>${isNvidia ? 'DeepSeek reasoning audits contract terms, detects high-risk clauses, and prepares negotiation redlines.' : 'Connect your NVIDIA Build API key to activate DeepSeek R1 for advanced legal reasoning.'}</p>
+                </div>
+            </div>
+            <button type="button" class="upload-ai-config-btn" onclick="openAiSettingsModal()">
+                <span class="material-symbols-outlined" style="font-size: 16px;">${isNvidia ? 'tune' : 'key'}</span>
+                ${isNvidia ? 'AI Settings' : 'Add NVIDIA Key'}
+            </button>
+        </div>
+    `;
+}
+
+function openAiSettingsModal() {
+    const existingModal = document.getElementById("aiSettingsModal");
+    if (existingModal) existingModal.remove();
+
+    const isConfigured = currentAiConfig.nvidia && currentAiConfig.nvidia.configured;
+    const maskedKey = isConfigured ? currentAiConfig.nvidia.maskedKey : '';
+    selectedModalModel = (currentAiConfig.nvidia && currentAiConfig.nvidia.model) || 'deepseek-ai/deepseek-r1';
+
+    const modal = document.createElement("div");
+    modal.className = "ai-modal-overlay";
+    modal.id = "aiSettingsModal";
+
+    modal.innerHTML = `
+        <div class="ai-modal-card">
+            <div class="ai-modal-header">
+                <h3>
+                    <span class="material-symbols-outlined" style="color: #164e3b;">smart_toy</span>
+                    AI Engine & NVIDIA API Settings
+                </h3>
+                <button class="ai-modal-close-btn" onclick="closeAiSettingsModal()" title="Close">&times;</button>
+            </div>
+
+            <div class="ai-modal-body">
+                <div class="ai-nvidia-info-box">
+                    <strong>⚡ NVIDIA NIM for DeepSeek:</strong> Add your free NVIDIA API key to unlock DeepSeek reasoning models (DeepSeek-R1 & DeepSeek-V3) for legal contract audits. Get your key at <a href="https://build.nvidia.com/deepseek-ai/deepseek-r1" target="_blank" rel="noopener">build.nvidia.com</a>.
+                </div>
+
+                <div class="ai-input-group">
+                    <label>
+                        <span>NVIDIA Build API Key</span>
+                        <span id="aiKeyStatusText" style="font-weight: 600; font-size: 11px; text-transform: none; color: ${isConfigured ? '#166534' : '#64748b'};">
+                            ${isConfigured ? '✓ Key Active (' + maskedKey + ')' : 'No key saved'}
+                        </span>
+                    </label>
+                    <div class="ai-key-input-wrapper">
+                        <input
+                            type="password"
+                            id="modalNvidiaApiKey"
+                            class="ai-text-input"
+                            placeholder="${isConfigured ? 'Leave blank to keep current key, or paste new key' : 'nvapi-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'}"
+                            autocomplete="off"
+                        />
+                        <button type="button" class="ai-key-toggle-btn" onclick="toggleKeyVisibility()" title="Show/Hide Key">
+                            <span class="material-symbols-outlined" id="keyToggleIcon" style="font-size: 18px;">visibility</span>
+                        </button>
+                    </div>
+                    <small style="color: #64748b; font-size: 11.5px;">API keys start with <code>nvapi-</code>. Stored securely on your local server.</small>
+                </div>
+
+                <div class="ai-input-group">
+                    <label>Select DeepSeek Model</label>
+                    <div class="ai-model-grid">
+                        <div class="ai-model-card ${selectedModalModel === 'deepseek-ai/deepseek-r1' ? 'selected' : ''}" id="cardR1" onclick="selectModelChoice('deepseek-ai/deepseek-r1')">
+                            <div class="ai-model-title">
+                                <span>DeepSeek-R1</span>
+                                <span class="doc-badge" style="background: #dcfce7; color: #166534; font-size: 10px; padding: 2px 6px;">Recommended</span>
+                            </div>
+                            <div class="ai-model-desc">Flagship reasoning model with step-by-step contractual risk deliberation and redline proposals.</div>
+                        </div>
+                        <div class="ai-model-card ${selectedModalModel === 'deepseek-ai/deepseek-v3' ? 'selected' : ''}" id="cardV3" onclick="selectModelChoice('deepseek-ai/deepseek-v3')">
+                            <div class="ai-model-title">
+                                <span>DeepSeek-V3</span>
+                                <span class="doc-badge" style="background: #e0f2fe; color: #0369a1; font-size: 10px; padding: 2px 6px;">Fast</span>
+                            </div>
+                            <div class="ai-model-desc">High-throughput 671B model optimized for fast contract translation and clause extraction.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="aiTestFeedback" class="ai-test-feedback-box"></div>
+            </div>
+
+            <div class="ai-modal-footer">
+                <button type="button" id="aiTestBtn" onclick="testCurrentNvidiaKey()" class="login-header-btn" style="background: white; border: 1px solid #cbd5e1; display: inline-flex; align-items: center; gap: 6px;">
+                    <span class="material-symbols-outlined" style="font-size: 16px;">bolt</span>
+                    Test Key
+                </button>
+                <div style="display: flex; gap: 8px;">
+                    <button type="button" onclick="closeAiSettingsModal()" class="login-header-btn" style="background: white;">
+                        Cancel
+                    </button>
+                    <button type="button" id="aiSaveBtn" onclick="saveCurrentAiConfig()" class="action-btn-primary" style="padding: 9px 20px; display: inline-flex; align-items: center; gap: 6px;">
+                        <span class="material-symbols-outlined" style="font-size: 16px;">save</span>
+                        Save & Activate
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+
+    modal.addEventListener("click", function(e) {
+        if (e.target === modal) closeAiSettingsModal();
+    });
+}
+
+function closeAiSettingsModal() {
+    const modal = document.getElementById("aiSettingsModal");
+    if (modal) modal.remove();
+}
+
+function toggleKeyVisibility() {
+    const input = document.getElementById("modalNvidiaApiKey");
+    const icon = document.getElementById("keyToggleIcon");
+    if (!input || !icon) return;
+    if (input.type === "password") {
+        input.type = "text";
+        icon.innerText = "visibility_off";
+    } else {
+        input.type = "password";
+        icon.innerText = "visibility";
+    }
+}
+
+function selectModelChoice(modelId) {
+    selectedModalModel = modelId;
+    const cardR1 = document.getElementById("cardR1");
+    const cardV3 = document.getElementById("cardV3");
+    if (cardR1) cardR1.classList.toggle("selected", modelId === 'deepseek-ai/deepseek-r1');
+    if (cardV3) cardV3.classList.toggle("selected", modelId === 'deepseek-ai/deepseek-v3');
+}
+
+async function testCurrentNvidiaKey() {
+    const input = document.getElementById("modalNvidiaApiKey");
+    const feedback = document.getElementById("aiTestFeedback");
+    const testBtn = document.getElementById("aiTestBtn");
+    if (!input || !feedback || !testBtn) return;
+
+    let keyToTest = input.value.trim();
+    if (!keyToTest && currentAiConfig.nvidia && currentAiConfig.nvidia.configured) {
+        keyToTest = ""; // Server will use current configured key
+    } else if (!keyToTest) {
+        feedback.className = "ai-test-feedback-box error";
+        feedback.innerText = "Please enter an NVIDIA API key (starts with nvapi-) to test.";
+        return;
+    }
+
+    testBtn.disabled = true;
+    const origBtnHtml = testBtn.innerHTML;
+    testBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px; animation: spin 1s infinite linear;">sync</span> Testing...`;
+    feedback.className = "ai-test-feedback-box";
+    feedback.style.display = "none";
+
+    try {
+        let apiUrl = "/api/config/ai/test";
+        if (window.location.port && window.location.port !== "3000") {
+            apiUrl = "http://localhost:3000/api/config/ai/test";
+        }
+        const res = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                nvidiaApiKey: keyToTest,
+                nvidiaModel: selectedModalModel
+            })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            feedback.className = "ai-test-feedback-box success";
+            feedback.innerHTML = `<strong>✓ Verified!</strong> ${data.message}`;
+        } else {
+            feedback.className = "ai-test-feedback-box error";
+            feedback.innerText = `✕ Error: ${data.error || 'Connection failed'}`;
+        }
+    } catch (e) {
+        feedback.className = "ai-test-feedback-box error";
+        feedback.innerText = `✕ Network Error: Unable to reach LegalEase backend test endpoint.`;
+    } finally {
+        testBtn.disabled = false;
+        testBtn.innerHTML = origBtnHtml;
+    }
+}
+
+async function saveCurrentAiConfig() {
+    const input = document.getElementById("modalNvidiaApiKey");
+    const saveBtn = document.getElementById("aiSaveBtn");
+    const feedback = document.getElementById("aiTestFeedback");
+    if (!saveBtn) return;
+
+    const newKey = input ? input.value.trim() : "";
+
+    saveBtn.disabled = true;
+    const origHtml = saveBtn.innerHTML;
+    saveBtn.innerHTML = `<span class="material-symbols-outlined" style="font-size: 16px; animation: spin 1s infinite linear;">sync</span> Saving...`;
+
+    try {
+        let apiUrl = "/api/config/ai";
+        if (window.location.port && window.location.port !== "3000") {
+            apiUrl = "http://localhost:3000/api/config/ai";
+        }
+        const bodyPayload = {
+            nvidiaModel: selectedModalModel,
+            preferredProvider: 'nvidia'
+        };
+        if (newKey) {
+            bodyPayload.nvidiaApiKey = newKey;
+        }
+
+        const res = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bodyPayload)
+        });
+
+        const data = await res.json();
+        if (res.ok && data.success) {
+            await fetchAiConfigFromApi();
+            if (feedback) {
+                feedback.className = "ai-test-feedback-box success";
+                feedback.innerHTML = `<strong>✓ Success!</strong> NVIDIA DeepSeek (${selectedModalModel}) is now active.`;
+            }
+            setTimeout(() => {
+                closeAiSettingsModal();
+            }, 800);
+        } else {
+            if (feedback) {
+                feedback.className = "ai-test-feedback-box error";
+                feedback.innerText = data.error || "Failed to update configuration.";
+            }
+        }
+    } catch (e) {
+        if (feedback) {
+            feedback.className = "ai-test-feedback-box error";
+            feedback.innerText = "Failed to communicate with server.";
+        }
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = origHtml;
+    }
+}
+
 // --- PAGE INITIALIZATION ---
 document.addEventListener("DOMContentLoaded", function () {
     renderNavbar();
@@ -901,6 +1243,9 @@ document.addEventListener("DOMContentLoaded", function () {
     
     // Fetch stored documents from SQLite DB
     fetchDocumentsFromApi();
+
+    // Fetch AI Engine configuration & render badges
+    fetchAiConfigFromApi();
     
     updateDashboardCounts();
     renderHistoryPage();
